@@ -1,4 +1,6 @@
-#include <Python.h>
+#include <stddef.h>
+#include <stdbool.h>
+#include <string.h>
 #include <float.h> /* for FLT_MAX */
 
 #define UNSET_SCORE FLT_MAX
@@ -11,11 +13,11 @@ typedef struct {
     long        needle_len;         // Length of same.
     long        *rightmost_match_p; // Rightmost match for each char in needle.
     float       max_score_per_char;
-    int         case_sensitive;     // Boolean.
+    bool        case_sensitive;
     float       *memo;              // Memoization.
 } matchinfo_t;
 
-float recursive_match(
+static float recursive_match(
     matchinfo_t *m,    // Sharable meta-data.
     long haystack_idx, // Where in the path string to start.
     long needle_idx,   // Where in the needle string to start.
@@ -101,7 +103,7 @@ float recursive_match(
 float calculate_match(
     const char *haystack,
     const char *needle,
-    int case_sensitive
+    bool case_sensitive
 ) {
     matchinfo_t m;
     long i;
@@ -122,7 +124,7 @@ float calculate_match(
     long haystack_limit;
     long memo_size;
     long needle_idx;
-    long mask;
+    /* long mask; */
     long rightmost_match_p[m.needle_len];
 
     // Pre-scan string:
@@ -130,7 +132,7 @@ float calculate_match(
     // - Record rightmost match for each character (prune search space).
     m.rightmost_match_p = rightmost_match_p;
     needle_idx = m.needle_len - 1;
-    mask = 0;
+    /* mask = 0; */
     for (i = m.haystack_len - 1; i >= 0; i--) {
         char c = m.haystack_p[i];
         char lower = c >= 'A' && c <= 'Z' ? c + ('a' - 'A') : c;
@@ -161,53 +163,4 @@ float calculate_match(
         score = recursive_match(&m, 0, 0, 0, 0.0);
     }
     return score;
-}
-
-static PyObject *score_calc(PyObject *self, PyObject *args) {
-    const char *needle;
-    const char *haystack;
-    int case_sensitive;
-
-    // See: https://docs.python.org/3/c-api/arg.html
-    if (!PyArg_ParseTuple(args, "ssi", &needle, &haystack, &case_sensitive)) {
-        return NULL;
-    }
-
-    return PyFloat_FromDouble(
-        calculate_match(haystack, needle, case_sensitive)
-    );
-}
-
-#define SENTINEL {NULL, NULL, 0, NULL}
-
-static PyMethodDef module_methods[] = {
-    {
-        "calc",
-        score_calc,
-        METH_VARARGS,
-        "Calculate a fuzzy match score for 'needle' in 'haystack'."
-    },
-    SENTINEL
-};
-
-// See: https://docs.python.org/3/c-api/module.html#initializing-modules
-static struct PyModuleDef module_def = {
-   PyModuleDef_HEAD_INIT,
-   "score", // Module name.
-   NULL, // Module docstring.
-   -1, // No per-interpreter state.
-   module_methods,
-   NULL, // Single-phase initialization.
-   NULL, // GC traversal function.
-   NULL, // GC clearing function.
-   NULL // Function to call when module is deallocated.
-};
-
-PyMODINIT_FUNC PyInit_score(void) {
-    Py_Initialize();
-    PyObject *m = PyModule_Create(&module_def);
-    if (!m) {
-        return NULL;
-    }
-    return m;
 }
