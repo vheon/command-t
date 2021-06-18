@@ -10,7 +10,8 @@ local function get_commandt_sorter()
   return sorters.Sorter:new {
     discard = true,
     scoring_function = function(_, prompt, line)
-      local score = native_lua.score(line, prompt, false)
+      local case_sensitive = prompt:find("%u") ~= nil
+      local score = native_lua.score(line, prompt, case_sensitive)
       if score == 0 then
         return -1
       end
